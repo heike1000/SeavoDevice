@@ -304,9 +304,9 @@ public class OperationManager {
     //功能：在线程中休眠
     //参数：无
     //返回值：无
-    private void sleepInThread() {
+    private void sleepInThread(int sleepTime) {
         try {
-            Thread.sleep(MainActivity.mainLoopInterval * 1000);
+            Thread.sleep(sleepTime * 1000L);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -401,7 +401,7 @@ public class OperationManager {
                 //拉起开机自启应用
                 setAppToStartOnReboot(httpManager.getAppToStartOnReboot());
             } else {
-                addToResultList("Connection failure. Retrying in " + MainActivity.mainLoopInterval + "s......");
+                addToResultList("Connection failure. Retrying in " + MainActivity.mainLoopIntervalAsy + "s......");
             }
         }).start();
     }
@@ -424,41 +424,44 @@ public class OperationManager {
             while (!Thread.currentThread().isInterrupted()) {
                 //检查网络连接状态、更新设备心跳时间戳
                 updateHeartBeat();
-                sleepInThread();
+                sleepInThread(MainActivity.mainLoopIntervalAsy);
                 if (Objects.equals(MainActivity.isOnline, "-1")) {
                     initializeDevice();
-                    sleepInThread();
+                    sleepInThread(MainActivity.mainLoopIntervalAsy);
                 }
             }
         });
 
         mainLoopThreadSyn = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
+                //防止空转
+                sleepInThread(MainActivity.mainLoopIntervalSyn);
                 if (Objects.equals(MainActivity.isOnline, "1")) {
-                    //上传已安装应用列表
-                    httpManager.updateAppList(getInstalledApp());
-                    sleepInThread();
-                    //获取并显示管理员消息
-                    getAndPrintMessages();
-                    sleepInThread();
+                    if (MainActivity.operatingTasks.get() == 0) {
+                        //上传已安装应用列表
+                        httpManager.updateAppList(getInstalledApp());
+                        sleepInThread(MainActivity.mainLoopIntervalSyn);
+                    }
+                    if (MainActivity.operatingTasks.get() == 0) {
+                        //获取并显示管理员消息
+                        getAndPrintMessages();
+                        sleepInThread(MainActivity.mainLoopIntervalSyn);
+                    }
                     if (MainActivity.operatingTasks.get() == 0) {
                         //检查并安装待下载应用
                         checkAndInstallApp();
-                        sleepInThread();
+                        sleepInThread(MainActivity.mainLoopIntervalSyn);
                     }
                     if (MainActivity.operatingTasks.get() == 0) {
                         //检查并卸载待删除应用
                         checkAndUninstallApp();
-                        sleepInThread();
+                        sleepInThread(MainActivity.mainLoopIntervalSyn);
                     }
                     if (MainActivity.operatingTasks.get() == 0) {
                         //检查并执行重启指令
                         checkAndExecuteReboot();
-                        sleepInThread();
+                        sleepInThread(MainActivity.mainLoopIntervalSyn);
                     }
-                }
-                else {
-                    sleepInThread();
                 }
             }
         });
