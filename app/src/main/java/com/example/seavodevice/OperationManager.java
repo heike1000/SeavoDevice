@@ -484,7 +484,6 @@ public class OperationManager {
                 }
             }
         });
-
         mainLoopThreadSyn = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 //防止空转
