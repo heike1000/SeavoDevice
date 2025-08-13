@@ -60,8 +60,9 @@ public class OperationManager {
     private final ProgressBar progressBarResult;
     private final ProgressBar progressBarMemory;
     private final HttpManager httpManager;
-    public double longitude = 0;
-    public double latitude = 0;
+    private double longitude = 0;
+    private double latitude = 0;
+    private String location = "0";
     private String memoryUsage = "0/0";
     private Thread mainLoopThreadAsy = null;
     private Thread mainLoopThreadSyn = null;
@@ -451,9 +452,8 @@ public class OperationManager {
             addToResultList("Limitation level: " + MainActivity.limitation);
             if (Objects.equals(MainActivity.isOnline, "1")) {
                 //首次更新设备心跳时间戳
-                httpManager.updateState(1,
-                        Double.toString(longitude),
-                        Double.toString(latitude),
+                httpManager.updateState("1",
+                        location,
                         memoryUsage);
                 //拉起开机自启应用
                 setAppToStartOnReboot(httpManager.getAppToStartOnReboot());
@@ -468,7 +468,7 @@ public class OperationManager {
     //4 主任务循环
     //功能：程序主循环
     //1.检查网络连接状态，异常时尝试重连
-    //2.更新设备心跳时间戳
+    //2.更新设备心跳时间戳、上传设备信息、执行地理围栏策略
     //3.上传已安装应用列表
     //4.获取并显示管理员消息
     //5.检查并安装待下载应用
@@ -479,8 +479,8 @@ public class OperationManager {
     public void mainLoop() {
         mainLoopThreadAsy = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
-                //检查网络连接状态、更新设备心跳时间戳
-                updateHeartBeat();
+                //更新设备心跳时间戳、上传设备信息、执行地理围栏策略
+                updateDeviceState();
                 sleepInThread(MainActivity.mainLoopIntervalAsy);
                 if (Objects.equals(MainActivity.isOnline, "-1")) {
                     initializeDevice();
@@ -542,13 +542,26 @@ public class OperationManager {
     }
 
     //以下为一组隶属于MainLoop的函数，不是公共api
-    //更新设备心跳时间戳，网络连接失败时将isOnline设置为"-1"
-    private void updateHeartBeat() {
+    //更新设备心跳时间戳、上传设备信息、执行地理围栏策略
+    private void updateDeviceState() {
+        //获取内存使用情况
         memoryUsage = getMemoryUsage();
-        String connection = httpManager.updateState(0,
-                Double.toString(longitude),
-                Double.toString(latitude),
+        //获取地理位置
+        if (!(longitude == 0 && latitude == 0)) {
+            location = httpManager.reverseGeoCode(Double.toString(longitude),
+                    Double.toString(latitude));
+        }
+        //执行地理围栏策略
+        if (!Objects.equals(MainActivity.geoFence, "0") &&
+                !Objects.equals(location, "0") &&
+                !location.contains(MainActivity.geoFence)) {
+            addToResultList("Out of fence");
+        }
+        //更新设备心跳时间戳并上传信息
+        String connection = httpManager.updateState("0",
+                location,
                 memoryUsage);
+        //网络连接失败时将isOnline设置为"-1"
         if (connection.equals("-1")) {
             MainActivity.isOnline = "-1";
         }

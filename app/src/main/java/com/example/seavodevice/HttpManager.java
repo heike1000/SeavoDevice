@@ -1,5 +1,6 @@
 package com.example.seavodevice;
 
+import android.util.DebugUtils;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -193,10 +194,10 @@ public class HttpManager {
         return result.toString();
     }
 
-    //功能：更新设备在线状态和时间戳，用于心跳检测和设备状态监控
+    //功能：更新设备心跳时间戳、上传设备信息、获取地理围栏
     //参数：waked - 设备启动标志（1表示开机状态，0表示常规状态更新）
     //返回值：String类型，"1"表示更新成功，"-1"表示更新失败
-    public String updateState(int waked, String longitude, String latitude, String memoryUsage) {
+    public String updateState(String waked, String location, String memoryUsage) {
         String result;
         Response response = null;
         String apiUrl = "http://" + server + "/api/update_state";
@@ -204,13 +205,14 @@ public class HttpManager {
             JSONObject requestBody = new JSONObject();
             requestBody.put("serial_number", serialNumber);
             requestBody.put("waked", waked);
-            requestBody.put("longitude", longitude);
-            requestBody.put("latitude", latitude);
+            requestBody.put("location", location);
             requestBody.put("memory_usage", memoryUsage);
             response = openHttpWithPost(apiUrl, requestBody);
             JSONObject jsonResponse = getJsonResponse(response);
             if (jsonResponse.getString("status").equals("success")) {
                 result = "1";
+                MainActivity.geoFence = jsonResponse.getString("geo_fence");
+                Log.e("SeavoDevice", MainActivity.geoFence);
             } else {
                 //服务器错误
                 result = "-1";
@@ -247,8 +249,7 @@ public class HttpManager {
                 //服务器错误
                 result = "-1";
             }
-            if (Objects.equals(MainActivity.limitation, "2") ||
-                    Objects.equals(MainActivity.limitation, "3")) {
+            if (Objects.equals(MainActivity.limitation, "2")) {
                 result = "com.example.seavodevice";
                 MainActivity.kiosk = "1";
             }
@@ -313,6 +314,28 @@ public class HttpManager {
         } catch (Exception e) {
             //连接错误
             Log.e("SeavoDevice", "HTTP异常: " + e.getMessage());
+        }
+        return result;
+    }
+
+    public String reverseGeoCode(String longitude, String latitude) {
+        JSONObject reGeoCode;
+        String result;
+        String apiUrl = "https://restapi.amap.com/v3/geocode/regeo?key=17be3445fcdf6fedd3dcc394051c1bcf&location=" + longitude + "," + latitude;
+        try (Response response = openHttpWithGet(apiUrl)) {
+            JSONObject jsonResponse = getJsonResponse(response);
+            if (jsonResponse.getString("status").equals("1")) {
+                reGeoCode = jsonResponse.getJSONObject("regeocode");
+                result = reGeoCode.getString("formatted_address");
+            }
+            else {
+                //服务器错误
+                result = "-1";
+            }
+        } catch (Exception e) {
+            //连接错误
+            Log.e("SeavoDevice", "HTTP异常: " + e.getMessage());
+            result = "-1";
         }
         return result;
     }
