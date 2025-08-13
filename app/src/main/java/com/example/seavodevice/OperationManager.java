@@ -178,11 +178,7 @@ public class OperationManager {
                 context.startActivity(intent);
             }
         } else {
-            if (Objects.equals(MainActivity.limitation, "2")) {
-                addToResultList("This device is locked by admin");
-            } else if (Objects.equals(MainActivity.limitation, "3")) {
-                addToResultList("Please stay within the designated area");
-            }
+            addToResultList("This device is locked by admin");
         }
     }
 
@@ -555,7 +551,13 @@ public class OperationManager {
         if (!Objects.equals(MainActivity.geoFence, "0") &&
                 !Objects.equals(location, "0") &&
                 !location.contains(MainActivity.geoFence)) {
-            addToResultList("Out of fence");
+            if (!Objects.equals(MainActivity.kiosk, "1")) {
+                MainActivity.kiosk = "1";
+                String[] allowedPackages = {context.getPackageName()};
+                devicePolicyManager.setLockTaskPackages(deviceAdminComponent, allowedPackages);
+                activity.startLockTask();
+                addToResultList("Please stay within the designate area");
+            }
         }
         //更新设备心跳时间戳并上传信息
         String connection = httpManager.updateState("0",
