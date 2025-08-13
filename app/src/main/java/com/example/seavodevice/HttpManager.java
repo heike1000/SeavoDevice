@@ -1,6 +1,5 @@
 package com.example.seavodevice;
 
-import android.util.DebugUtils;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -318,6 +317,9 @@ public class HttpManager {
         return result;
     }
 
+    //功能：根据经纬度解析地理位置
+    //参数：无
+    //返回值：String类型，地理位置
     public String reverseGeoCode(String longitude, String latitude) {
         JSONObject reGeoCode;
         String result;
@@ -327,8 +329,7 @@ public class HttpManager {
             if (jsonResponse.getString("status").equals("1")) {
                 reGeoCode = jsonResponse.getJSONObject("regeocode");
                 result = reGeoCode.getString("formatted_address");
-            }
-            else {
+            } else {
                 //服务器错误
                 result = "-1";
             }
