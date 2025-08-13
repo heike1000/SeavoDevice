@@ -7,6 +7,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
+import android.app.AppOpsManager;
 import android.app.PendingIntent;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
@@ -17,6 +18,9 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.graphics.Point;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.UserManager;
@@ -29,7 +33,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 
-
+import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 
 import java.io.BufferedReader;
@@ -48,19 +52,21 @@ import java.util.Objects;
 
 public class OperationManager {
     private final Context context;
+    private final Activity activity;
     private final DevicePolicyManager devicePolicyManager;
     private final ComponentName deviceAdminComponent;
     private final ArrayAdapter<String> adapter;
     private final List<String> resultList;
     private final ProgressBar progressBarResult;
     private final ProgressBar progressBarMemory;
-    private final Activity activity;
     private final HttpManager httpManager;
-    public static double longitude = 0;
-    public static double latitude = 0;
+    public double longitude = 0;
+    public double latitude = 0;
     private String memoryUsage = "0/0";
     private Thread mainLoopThreadAsy = null;
     private Thread mainLoopThreadSyn = null;
+    private LocationManager locationManager;
+    private LocationListener locationListener;
 
     public OperationManager(Context context,
                             Activity activity,
@@ -78,7 +84,7 @@ public class OperationManager {
         listViewResult.setAdapter(adapter);
         this.progressBarResult = progressBarResult;
         this.progressBarMemory = progressBarMemory;
-        httpManager = new HttpManager(MainActivity.serialNumber);
+        httpManager = new HttpManager();
     }
 
 //-----------------------------------------------//
@@ -151,12 +157,12 @@ public class OperationManager {
         if (appName == null || appName.equals("-1")) {
             return;
         }
+        if (Objects.equals(MainActivity.kiosk, "1")) {
+            String[] allowedPackages = {context.getPackageName(), appName};
+            devicePolicyManager.setLockTaskPackages(deviceAdminComponent, allowedPackages);
+            activity.startLockTask();
+        }
         if (!appName.equals(context.getPackageName())) {
-            if (Objects.equals(MainActivity.kiosk, "1")) {
-                String[] allowedPackages = {context.getPackageName(), appName};
-                devicePolicyManager.setLockTaskPackages(deviceAdminComponent, allowedPackages);
-                activity.startLockTask();
-            }
             try {
                 addToResultList("Starting " + appName + " in 2 seconds");
                 Thread.sleep(2000);
@@ -168,18 +174,14 @@ public class OperationManager {
                 intent.addFlags(
                         Intent.FLAG_ACTIVITY_NEW_TASK
                 );
-                activity.startActivity(intent);
+                context.startActivity(intent);
             }
         } else {
-            String[] allowedPackages = {context.getPackageName()};
-            devicePolicyManager.setLockTaskPackages(deviceAdminComponent, allowedPackages);
-            activity.startLockTask();
             if (Objects.equals(MainActivity.limitation, "2")) {
                 addToResultList("This device is locked by admin");
             } else if (Objects.equals(MainActivity.limitation, "3")) {
                 addToResultList("Please stay within the designated area");
             }
-
         }
     }
 
@@ -292,7 +294,7 @@ public class OperationManager {
     //返回值：String类型，格式为：已使用内存/总内存
     private String getMemoryUsage() {
         StringBuilder result = new StringBuilder();
-        ActivityManager activityManager = (ActivityManager) activity.getSystemService(ACTIVITY_SERVICE);
+        ActivityManager activityManager = (ActivityManager) context.getSystemService(ACTIVITY_SERVICE);
         ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
         activityManager.getMemoryInfo(memoryInfo);
         float usedPercent = 100f * (memoryInfo.totalMem - memoryInfo.availMem) / memoryInfo.totalMem;
@@ -344,9 +346,9 @@ public class OperationManager {
     public void startForegroundService() {
         Intent serviceIntent = new Intent(context, ForegroundService.class);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            activity.startForegroundService(serviceIntent);
+            context.startForegroundService(serviceIntent);
         } else {
-            activity.startService(serviceIntent);
+            context.startService(serviceIntent);
         }
     }
 
@@ -361,6 +363,23 @@ public class OperationManager {
         devicePolicyManager.addUserRestriction(deviceAdminComponent, UserManager.DISALLOW_INSTALL_APPS);
     }
 
+    //功能：检查获取topActivity权限
+    //参数：无
+    //返回值：无
+    public boolean isUsageStatsPermissionGranted() {
+        try {
+            PackageManager packageManager = context.getPackageManager();
+            ApplicationInfo applicationInfo = packageManager.getApplicationInfo(context.getPackageName(), 0);
+            AppOpsManager appOpsManager = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
+            int mode = appOpsManager.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    applicationInfo.uid,
+                    applicationInfo.packageName);
+            return (mode == AppOpsManager.MODE_ALLOWED);
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
     //功能：请求忽略电池优化、获取位置
     //参数：无
     //返回值：无
@@ -368,7 +387,7 @@ public class OperationManager {
         //请求忽略电池优化
         @SuppressLint("BatteryLife") Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
         intent.setData(Uri.parse("package:" + context.getPackageName()));
-        activity.startActivity(intent);
+        context.startActivity(intent);
         //请求获取位置
         ActivityCompat.requestPermissions(
                 activity,
@@ -378,6 +397,44 @@ public class OperationManager {
                 },
                 100
         );
+        if (!isUsageStatsPermissionGranted()) {
+            //请求读取topActivity
+            intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+            context.startActivity(intent);
+        }
+    }
+
+    //功能：开始获取位置
+    //参数：无
+    //返回值：无
+    public void setupLocationListener() {
+        locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(@NonNull Location location) {
+                longitude = location.getLongitude();
+                latitude = location.getLatitude();
+            }
+        };
+        try {
+            if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                locationManager.requestLocationUpdates(
+                        LocationManager.NETWORK_PROVIDER,
+                        10000,
+                        0,
+                        locationListener
+                );
+            } else if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                locationManager.requestLocationUpdates(
+                        LocationManager.GPS_PROVIDER,
+                        10000,
+                        0,
+                        locationListener
+                );
+            }
+        } catch (SecurityException e) {
+            Log.e("SeavoDevice", "Location permission not granted", e);
+        }
     }
 
     //功能：初始化设备
@@ -389,7 +446,7 @@ public class OperationManager {
     public void initializeDevice() {
         new Thread(() -> {
             //注册设备到服务器
-            String result = httpManager.registerDevice(MainActivity.fwVersion);
+            String result = httpManager.registerDevice();
             addToResultList(result);
             addToResultList("Limitation level: " + MainActivity.limitation);
             if (Objects.equals(MainActivity.isOnline, "1")) {
@@ -472,12 +529,15 @@ public class OperationManager {
     //功能：终止主循环线程
     //参数：无
     //返回值：无
-    public void stopMainLoopThreads() {
+    public void stopMainLoop() {
         if (mainLoopThreadAsy != null) {
             mainLoopThreadAsy.interrupt();
         }
         if (mainLoopThreadSyn != null) {
             mainLoopThreadSyn.interrupt();
+        }
+        if (locationManager != null && locationListener != null) {
+            locationManager.removeUpdates(locationListener);
         }
     }
 

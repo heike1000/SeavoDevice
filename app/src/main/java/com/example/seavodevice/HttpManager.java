@@ -19,12 +19,14 @@ import okhttp3.Response;
 
 public class HttpManager {
     private final String serialNumber;
+    private final String fwVersion;
     private final String server = "47.112.30.35:5000";
     private final OkHttpClient client;
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    public HttpManager(String serialNumber) {
-        this.serialNumber = serialNumber;
+    public HttpManager() {
+        this.serialNumber = MainActivity.serialNumber;
+        this.fwVersion = MainActivity.fwVersion;
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
                 .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
@@ -109,8 +111,7 @@ public class HttpManager {
             if (jsonResponse.getString("status").equals("success")) {
                 if (!jsonResponse.isNull("download_url")) {
                     downloadUrl = jsonResponse.getString("download_url");
-                }
-                else {
+                } else {
                     downloadUrl = null;
                 }
             } else {
@@ -136,8 +137,7 @@ public class HttpManager {
             if (jsonResponse.getString("status").equals("success")) {
                 if (!jsonResponse.isNull("package_name")) {
                     packageName = jsonResponse.getString("package_name");
-                }
-                else {
+                } else {
                     packageName = null;
                 }
             } else {
@@ -155,7 +155,7 @@ public class HttpManager {
     //功能：将当前设备注册到数据库系统，并初始化固件版本信息。若注册成功则将online设置为"1"，失败则设置为"-1"
     //参数：fwVersion - 设备当前固件版本号
     //返回值：String类型，包含注册结果信息（成功/失败/已注册）及设备序列号
-    public String registerDevice(String fwVersion) {
+    public String registerDevice() {
         StringBuilder result = new StringBuilder();
         Response response = null;
         String apiUrl = "http://" + server + "/api/register";
@@ -239,16 +239,18 @@ public class HttpManager {
                 if (!jsonResponse.isNull("app_name")) {
                     result = jsonResponse.getString("app_name");
                     MainActivity.kiosk = jsonResponse.getString("kiosk");
-                }
-                else {
+                    MainActivity.kioskAppPackage = Objects.equals(MainActivity.kiosk, "1") ? result : MainActivity.kioskAppPackage;
+                } else {
                     result = null;
                 }
             } else {
                 //服务器错误
                 result = "-1";
             }
-            if (Objects.equals(MainActivity.limitation, "2") || Objects.equals(MainActivity.limitation, "3")) {
+            if (Objects.equals(MainActivity.limitation, "2") ||
+                    Objects.equals(MainActivity.limitation, "3")) {
                 result = "com.example.seavodevice";
+                MainActivity.kiosk = "1";
             }
         } catch (Exception e) {
             //连接错误

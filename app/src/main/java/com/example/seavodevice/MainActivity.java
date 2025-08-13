@@ -34,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     private OperationManager operationManager;
     public static volatile String isOnline = "0";
     public static volatile String kiosk = "0";
+    public static String kioskAppPackage = null;
     public static final int mainLoopIntervalAsy = 20;//单位：秒
     public static final int mainLoopIntervalSyn = 5;//单位：秒
     public static String limitation = "1";
@@ -49,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
         //获取设备唯一标识和系统版本
         serialNumber = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
         fwVersion = Build.DISPLAY;
@@ -60,21 +62,14 @@ public class MainActivity extends AppCompatActivity {
         DevicePolicyManager devicePolicyManager = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
         ComponentName deviceAdminComponent = new ComponentName(this, DeviceAdminReceiver.class);
         //初始化操作控制器
-        operationManager = new OperationManager(this,
-                this,
-                devicePolicyManager,
-                deviceAdminComponent,
-                listViewResult,
-                progressBarResult,
-                progressBarMemory
-        );
+        operationManager = new OperationManager(this, this, devicePolicyManager, deviceAdminComponent, listViewResult, progressBarResult, progressBarMemory);
         //请求忽略电池优化、获取位置
-        operationManager.requestPermission();
         boolean isDeviceOwner = devicePolicyManager.isDeviceOwnerApp(getPackageName());
         boolean hasLocationPermission = checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        boolean hasPackageUsageStatsPermission = operationManager.isUsageStatsPermissionGranted();
         boolean isIgnoringBatteryOptimizations = getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName());
         //检查必须权限
-        if (isDeviceOwner && hasLocationPermission && isIgnoringBatteryOptimizations) {
+        if (isDeviceOwner && hasLocationPermission && isIgnoringBatteryOptimizations && hasPackageUsageStatsPermission) {
             //根据设备长宽锁定方向
             operationManager.setScreenOrientation();
             //禁用屏保，限制安装/卸载
@@ -83,26 +78,33 @@ public class MainActivity extends AppCompatActivity {
             operationManager.startForegroundService();
             //注册安装结果广播接收器
             LocalBroadcastManager.getInstance(this).registerReceiver(ResultReceiver, new IntentFilter(InstallAndUninstallResultReceiver.ACTION_INSTALL_DELETION_RESULT));
+            //开始获取位置
+            operationManager.setupLocationListener();
             //初始化设备
             operationManager.initializeDevice();
             //主循环
             operationManager.mainLoop();
         } else {
+            operationManager.requestPermission();
             if (!isDeviceOwner) {
-                operationManager.addToResultList("Need permission: device owner");
+                operationManager.addToResultList("Need permission: Device owner");
             }
             if (!hasLocationPermission) {
-                operationManager.addToResultList("Need permission: grant location");
+                operationManager.addToResultList("Need permission: Grant location");
             }
             if (!isIgnoringBatteryOptimizations) {
-                operationManager.addToResultList("Need permission: ignore battery optimizations");
+                operationManager.addToResultList("Need permission: Ignore battery optimizations");
+            }
+            if (!hasPackageUsageStatsPermission) {
+                operationManager.addToResultList("Need permission: Package usage stats");
             }
         }
     }
 
+
     @Override
     protected void onDestroy() {
-        operationManager.stopMainLoopThreads();
+        operationManager.stopMainLoop();
         Intent serviceIntent = new Intent(this, ForegroundService.class);
         stopService(serviceIntent);
         LocalBroadcastManager.getInstance(this).unregisterReceiver(ResultReceiver);
