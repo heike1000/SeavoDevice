@@ -35,7 +35,7 @@ public class MainActivity extends AppCompatActivity {
     public static volatile String isOnline = "0";
     public static volatile String kiosk = "0";
     public static volatile String geoFence = "0";
-    public static volatile String kioskAppPackage = null;
+    public static volatile String kioskAppPackage = "0";
     public static final int mainLoopIntervalAsy = 20;//单位：秒
     public static final int mainLoopIntervalSyn = 5;//单位：秒
     public static String limitation = "1";
