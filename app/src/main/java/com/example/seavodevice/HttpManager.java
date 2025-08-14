@@ -168,11 +168,11 @@ public class HttpManager {
             if (jsonResponse.getString("status").equals("success")) {
                 boolean isRegistered = jsonResponse.getBoolean("is_registered");
                 if (isRegistered) {
-                    MainActivity.limitation = jsonResponse.getString("limitation");
                     result.append(String.format("Device already registered\nSerial number: %s", serialNumber));
                 } else {
                     result.append(String.format("Registration success\nSerial number: %s", serialNumber));
                 }
+                MainActivity.limitation = jsonResponse.getString("limitation");
                 MainActivity.isOnline = "1";
             } else {
                 //服务器错误

@@ -475,10 +475,12 @@ public class OperationManager {
     public void mainLoop() {
         mainLoopThreadAsy = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
-                //更新设备心跳时间戳、上传设备信息、执行地理围栏策略
-                updateDeviceState();
-                sleepInThread(MainActivity.mainLoopIntervalAsy);
-                if (Objects.equals(MainActivity.isOnline, "-1")) {
+                if (Objects.equals(MainActivity.isOnline, "1")) {
+                    //更新设备心跳时间戳、上传设备信息、执行地理围栏策略
+                    updateDeviceState();
+                    sleepInThread(MainActivity.mainLoopIntervalAsy);
+                }
+                else if(Objects.equals(MainActivity.isOnline, "-1")) {
                     initializeDevice();
                     sleepInThread(MainActivity.mainLoopIntervalAsy);
                 }
