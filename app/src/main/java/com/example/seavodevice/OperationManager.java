@@ -69,13 +69,7 @@ public class OperationManager {
     private LocationManager locationManager;
     private LocationListener locationListener;
 
-    public OperationManager(Context context,
-                            Activity activity,
-                            DevicePolicyManager devicePolicyManager,
-                            ComponentName deviceAdminComponent,
-                            ListView listViewResult,
-                            ProgressBar progressBarResult,
-                            ProgressBar progressBarMemory) {
+    public OperationManager(Context context, Activity activity, DevicePolicyManager devicePolicyManager, ComponentName deviceAdminComponent, ListView listViewResult, ProgressBar progressBarResult, ProgressBar progressBarMemory) {
         this.context = context;
         this.activity = activity;
         this.devicePolicyManager = devicePolicyManager;
@@ -172,9 +166,7 @@ public class OperationManager {
             }
             Intent intent = context.getPackageManager().getLaunchIntentForPackage(appName);
             if (intent != null) {
-                intent.addFlags(
-                        Intent.FLAG_ACTIVITY_NEW_TASK
-                );
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(intent);
             }
         } else {
@@ -232,8 +224,7 @@ public class OperationManager {
                 connection.setConnectTimeout(5000);
                 connection.setReadTimeout(10000);
 
-                try (InputStream input = connection.getInputStream();
-                     FileOutputStream output = new FileOutputStream(outputFile)) {
+                try (InputStream input = connection.getInputStream(); FileOutputStream output = new FileOutputStream(outputFile)) {
                     byte[] buffer = new byte[4096];
                     int bytesRead;
                     long totalRead = 0;
@@ -274,8 +265,7 @@ public class OperationManager {
         StringBuilder result = new StringBuilder();
         try {
             Process process = Runtime.getRuntime().exec("logcat -d -v time *:E *:W");
-            BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()));
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null) {
                 result.append(line).append("\n");
@@ -368,9 +358,7 @@ public class OperationManager {
             PackageManager packageManager = context.getPackageManager();
             ApplicationInfo applicationInfo = packageManager.getApplicationInfo(context.getPackageName(), 0);
             AppOpsManager appOpsManager = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
-            int mode = appOpsManager.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    applicationInfo.uid,
-                    applicationInfo.packageName);
+            int mode = appOpsManager.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, applicationInfo.uid, applicationInfo.packageName);
             return (mode == AppOpsManager.MODE_ALLOWED);
         } catch (PackageManager.NameNotFoundException e) {
             return false;
@@ -386,14 +374,7 @@ public class OperationManager {
         intent.setData(Uri.parse("package:" + context.getPackageName()));
         context.startActivity(intent);
         //请求获取位置
-        ActivityCompat.requestPermissions(
-                activity,
-                new String[]{
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                },
-                100
-        );
+        ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 100);
         if (!isUsageStatsPermissionGranted()) {
             //请求读取topActivity
             intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
@@ -415,19 +396,9 @@ public class OperationManager {
         };
         try {
             if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                        LocationManager.NETWORK_PROVIDER,
-                        10000,
-                        0,
-                        locationListener
-                );
+                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 10000, 0, locationListener);
             } else if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                        LocationManager.GPS_PROVIDER,
-                        10000,
-                        0,
-                        locationListener
-                );
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 0, locationListener);
             }
         } catch (SecurityException e) {
             Log.e("SeavoDevice", "Location permission not granted", e);
@@ -448,9 +419,7 @@ public class OperationManager {
             addToResultList("Limitation level: " + MainActivity.limitation);
             if (Objects.equals(MainActivity.isOnline, "1")) {
                 //首次更新设备心跳时间戳
-                httpManager.updateState("1",
-                        location,
-                        memoryUsage);
+                httpManager.updateState("1", location, memoryUsage);
                 //拉起开机自启应用
                 setAppToStartOnReboot(httpManager.getAppToStartOnReboot());
             } else {
@@ -479,8 +448,7 @@ public class OperationManager {
                     //更新设备心跳时间戳、上传设备信息、执行地理围栏策略
                     updateDeviceState();
                     sleepInThread(MainActivity.mainLoopIntervalAsy);
-                }
-                else if(Objects.equals(MainActivity.isOnline, "-1")) {
+                } else if (Objects.equals(MainActivity.isOnline, "-1")) {
                     initializeDevice();
                     sleepInThread(MainActivity.mainLoopIntervalAsy);
                 }
@@ -545,13 +513,10 @@ public class OperationManager {
         memoryUsage = getMemoryUsage();
         //获取地理位置
         if (!(longitude == 0 && latitude == 0)) {
-            location = httpManager.reverseGeoCode(Double.toString(longitude),
-                    Double.toString(latitude));
+            location = httpManager.reverseGeoCode(Double.toString(longitude), Double.toString(latitude));
         }
         //执行地理围栏策略
-        if (!Objects.equals(MainActivity.geoFence, "0") &&
-                !Objects.equals(location, "0") &&
-                !location.contains(MainActivity.geoFence)) {
+        if (!Objects.equals(MainActivity.geoFence, "0") && !Objects.equals(location, "0") && !location.contains(MainActivity.geoFence)) {
             if (!Objects.equals(MainActivity.kiosk, "1")) {
                 MainActivity.kiosk = "1";
                 String[] allowedPackages = {context.getPackageName()};
@@ -561,9 +526,7 @@ public class OperationManager {
             }
         }
         //更新设备心跳时间戳并上传信息
-        String connection = httpManager.updateState("0",
-                location,
-                memoryUsage);
+        String connection = httpManager.updateState("0", location, memoryUsage);
         //网络连接失败时将isOnline设置为"-1"
         if (connection.equals("-1")) {
             MainActivity.isOnline = "-1";

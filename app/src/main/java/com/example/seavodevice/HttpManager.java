@@ -27,10 +27,7 @@ public class HttpManager {
     public HttpManager() {
         this.serialNumber = MainActivity.serialNumber;
         this.fwVersion = MainActivity.fwVersion;
-        this.client = new OkHttpClient.Builder()
-                .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                .build();
+        this.client = new OkHttpClient.Builder().connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS).readTimeout(10, java.util.concurrent.TimeUnit.SECONDS).build();
     }
 
     // 功能：从HTTP连接中读取响应并解析为JSON对象
@@ -45,10 +42,7 @@ public class HttpManager {
     // 参数：apiUrl - 请求的目标URL
     // 返回值：配置好的HTTP响应（当响应码为200时），否则返回null
     private Response openHttpWithGet(String apiUrl) throws IOException {
-        Request request = new Request.Builder()
-                .url(apiUrl)
-                .get()
-                .build();
+        Request request = new Request.Builder().url(apiUrl).get().build();
         Response response = client.newCall(request).execute();
         if (response.isSuccessful()) {
             return response;
@@ -62,10 +56,7 @@ public class HttpManager {
     // 返回值：配置好的HTTP响应（当响应码为200时），否则返回null
     private Response openHttpWithPost(String apiUrl, JSONObject requestBody) throws IOException {
         RequestBody body = RequestBody.create(requestBody.toString(), JSON);
-        Request request = new Request.Builder()
-                .url(apiUrl)
-                .post(body)
-                .build();
+        Request request = new Request.Builder().url(apiUrl).post(body).build();
         Response response = client.newCall(request).execute();
         if (response.isSuccessful()) {
             return response;
