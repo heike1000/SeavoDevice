@@ -516,7 +516,7 @@ public class OperationManager {
             location = httpManager.reverseGeoCode(Double.toString(longitude), Double.toString(latitude));
         }
         //执行地理围栏策略
-        if (!Objects.equals(MainActivity.geoFence, "0") && !Objects.equals(location, "0") && !location.contains(MainActivity.geoFence)) {
+        if (!Objects.equals(MainActivity.geoFence, "0") && !Objects.equals(location, "0") && !Objects.equals(location, "-1") && !location.contains(MainActivity.geoFence)) {
             if (!Objects.equals(MainActivity.kiosk, "1")) {
                 MainActivity.kiosk = "1";
                 String[] allowedPackages = {context.getPackageName()};
@@ -591,12 +591,7 @@ public class OperationManager {
         if (packageName != null && !packageName.equals("-1")) {
             MainActivity.operatingTasks.incrementAndGet();
             addToResultList("Uninstalling: " + packageName);
-            try {
-                uninstallAppWithCallback(packageName);
-            } catch (Exception e) {
-                MainActivity.operatingTasks.decrementAndGet();
-                addToResultList(e.getMessage());
-            }
+            uninstallAppWithCallback(packageName);
         } else if (Objects.equals(packageName, "-1")) {
             //异常处理：获取待卸载app列表失败
             Log.e("SeavoDevice", "Fail to get app to uninstall");
