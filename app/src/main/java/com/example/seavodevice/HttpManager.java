@@ -20,7 +20,7 @@ import okhttp3.Response;
 public class HttpManager {
     private final String serialNumber;
     private final String fwVersion;
-    private final String server = "47.112.30.35:5000";
+    private final String server = "192.168.0.107:5000";
     private final OkHttpClient client;
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
@@ -149,10 +149,9 @@ public class HttpManager {
     public String registerDevice() {
         StringBuilder result = new StringBuilder();
         Response response = null;
-        String apiUrl = "http://" + server + "/api/register";
+        String apiUrl = "http://" + server + "/api/register?serial_number=" + serialNumber;
         try {
             JSONObject requestBody = new JSONObject();
-            requestBody.put("serial_number", serialNumber);
             requestBody.put("fw_version", fwVersion);
             response = openHttpWithPost(apiUrl, requestBody);
             JSONObject jsonResponse = getJsonResponse(response);
@@ -190,10 +189,9 @@ public class HttpManager {
     public String updateState(String waked, String location, String memoryUsage) {
         String result;
         Response response = null;
-        String apiUrl = "http://" + server + "/api/update_state";
+        String apiUrl = "http://" + server + "/api/update_state?serial_number=" + serialNumber;
         try {
             JSONObject requestBody = new JSONObject();
-            requestBody.put("serial_number", serialNumber);
             requestBody.put("waked", waked);
             requestBody.put("location", location);
             requestBody.put("memory_usage", memoryUsage);
@@ -257,10 +255,9 @@ public class HttpManager {
     public String updateAppList(List<String> usersApp) {
         String result;
         Response response = null;
-        String apiUrl = "http://" + server + "/api/update_app_list";
+        String apiUrl = "http://" + server + "/api/update_app_list?serial_number=" + serialNumber;
         try {
             JSONObject requestBody = new JSONObject();
-            requestBody.put("serial_number", serialNumber);
             JSONArray appsArray = new JSONArray();
             for (String app : usersApp) {
                 appsArray.put(app);
